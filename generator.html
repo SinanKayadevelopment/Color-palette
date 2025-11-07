@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PaletteLab · Generator</title>
+  <script>
+    (function () {
+      const storedTheme = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Segoe UI"', 'Tahoma', 'Geneva', 'Verdana', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+</head>
+<body class="min-h-screen bg-slate-100 font-sans text-slate-900 transition-colors duration-300 dark:bg-slate-900 dark:text-slate-100">
+  <nav class="border-b border-slate-200 bg-white/80 backdrop-blur transition-colors duration-300 dark:border-slate-700 dark:bg-slate-900/70">
+    <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+      <a href="index.html" class="text-lg font-semibold tracking-tight text-slate-900 transition hover:text-indigo-500 dark:text-slate-100">PaletteLab</a>
+      <div class="flex items-center gap-3">
+        <a href="generator.html" aria-current="page" class="hidden text-sm font-semibold text-indigo-500 transition dark:text-indigo-300 sm:inline">Generator</a>
+        <a href="saved.html" class="hidden text-sm font-semibold text-slate-700 transition hover:text-indigo-500 dark:text-slate-200 sm:inline">Saved Palettes</a>
+        <button
+          type="button"
+          id="theme-toggle"
+          class="inline-flex items-center justify-center rounded-full border border-slate-200 px-5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:hover:border-slate-500">
+          Switch to Dark Mode
+        </button>
+      </div>
+    </div>
+  </nav>
+  <div class="flex min-h-[calc(100vh-80px)] items-center justify-center px-6 py-16">
+    <main class="w-full max-w-3xl rounded-3xl bg-white px-8 py-10 shadow-2xl ring-1 ring-slate-900/10 transition-colors duration-300 dark:bg-slate-800 dark:ring-white/10 sm:px-12 sm:py-14">
+      <div class="flex flex-col gap-8">
+        <header class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div class="space-y-3 text-center md:text-left">
+            <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Palette Generator</h1>
+            <p class="text-sm text-slate-600 dark:text-slate-300">Click any color to copy its hex code. Generate a new palette anytime.</p>
+          </div>
+          <button
+            type="button"
+            id="generate-button"
+            class="inline-flex items-center justify-center rounded-full bg-indigo-500 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-500">
+            Generate
+          </button>
+        </header>
+        <section class="palette grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5" role="list" aria-label="Color palette"></section>
+        <p class="text-center text-sm text-slate-500 dark:text-slate-300">Hover any swatch to reveal the save button. Saved colors appear on the <a href="saved.html" class="font-semibold text-indigo-500 hover:text-indigo-600">Saved Palettes</a> page.</p>
+      </div>
+    </main>
+  </div>
+  <div class="pointer-events-none fixed bottom-10 left-1/2 -translate-x-1/2 rounded-full bg-slate-900 px-4 py-3 text-sm font-medium text-white opacity-0 transition dark:bg-slate-100 dark:text-slate-900"
+    role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <script>
+    const palette = document.querySelector('.palette');
+    const generateButton = document.querySelector('#generate-button');
+    const toast = document.querySelector('[role="status"]');
+    const themeToggle = document.querySelector('#theme-toggle');
+    const root = document.documentElement;
+
+    function randomHexColor() {
+      const color = Math.floor(Math.random() * 0xffffff)
+        .toString(16)
+        .padStart(6, '0');
+      return `#${color.toUpperCase()}`;
+    }
+
+    function createSwatch(color) {
+      const swatch = document.createElement('div');
+      swatch.className = 'group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-white shadow-lg ring-1 ring-slate-900/10 transition duration-200 hover:-translate-y-1 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-500 dark:bg-slate-700 dark:ring-white/10';
+      swatch.setAttribute('role', 'button');
+      swatch.setAttribute('tabindex', '0');
+      swatch.setAttribute('aria-label', `Copy ${color}`);
+
+      const colorBlock = document.createElement('div');
+      colorBlock.className = 'h-36 w-full transition-colors duration-300';
+      colorBlock.style.backgroundColor = color;
+
+      const label = document.createElement('span');
+      label.className = 'bg-white/90 px-4 py-3 text-center text-sm font-semibold uppercase tracking-widest text-slate-800 backdrop-blur transition-colors duration-300 dark:bg-slate-900/60 dark:text-slate-100';
+      label.textContent = color;
+
+      const saveButton = document.createElement('button');
+      saveButton.type = 'button';
+      saveButton.className = 'absolute right-3 top-3 hidden rounded-full bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-800 shadow transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 group-hover:inline-flex group-hover:items-center group-hover:justify-center dark:bg-slate-900/80 dark:text-slate-100';
+      saveButton.textContent = 'Save';
+      saveButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        saveColor(color);
+      });
+
+      swatch.append(colorBlock, label, saveButton);
+      swatch.addEventListener('click', () => copyColor(color));
+      swatch.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          copyColor(color);
+        }
+      });
+
+      return swatch;
+    }
+
+    function displayPalette(colors) {
+      palette.innerHTML = '';
+      const fragment = document.createDocumentFragment();
+      colors.forEach((color) => fragment.appendChild(createSwatch(color)));
+      palette.appendChild(fragment);
+    }
+
+    async function copyColor(color) {
+      try {
+        await navigator.clipboard.writeText(color);
+        showToast(`${color} copied`);
+      } catch (error) {
+        console.error('Clipboard copy failed', error);
+        showToast('Copy failed');
+      }
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.remove('opacity-0');
+      toast.classList.add('opacity-100');
+      clearTimeout(showToast.timeoutId);
+      showToast.timeoutId = setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0');
+      }, 1800);
+    }
+
+    function loadSavedColors() {
+      try {
+        const stored = JSON.parse(localStorage.getItem('saved-palettes'));
+        if (Array.isArray(stored)) {
+          return stored;
+        }
+      } catch (error) {
+        console.error('Failed to parse saved palettes', error);
+      }
+      return [];
+    }
+
+    function saveColorsToStorage(colors) {
+      localStorage.setItem('saved-palettes', JSON.stringify(colors));
+    }
+
+    function saveColor(color) {
+      const colors = loadSavedColors();
+      if (colors.includes(color)) {
+        showToast(`${color} already saved`);
+        return;
+      }
+      const nextColors = [...colors, color];
+      saveColorsToStorage(nextColors);
+      showToast(`${color} saved`);
+    }
+
+    function isDarkMode() {
+      return root.classList.contains('dark');
+    }
+
+    function syncThemeToggleLabel() {
+      const dark = isDarkMode();
+      themeToggle.textContent = dark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+      themeToggle.setAttribute('aria-pressed', String(dark));
+    }
+
+    function setTheme(nextTheme) {
+      if (nextTheme === 'dark') {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+      localStorage.setItem('theme', nextTheme);
+      syncThemeToggleLabel();
+    }
+
+    function generatePalette() {
+      const colors = Array.from({ length: 5 }, randomHexColor);
+      displayPalette(colors);
+    }
+
+    generateButton.addEventListener('click', generatePalette);
+
+    themeToggle.addEventListener('click', () => {
+      const nextTheme = isDarkMode() ? 'light' : 'dark';
+      setTheme(nextTheme);
+      showToast(`Switched to ${nextTheme} mode`);
+    });
+
+    syncThemeToggleLabel();
+    generatePalette();
+  </script>
+</body>
+</html>
+
